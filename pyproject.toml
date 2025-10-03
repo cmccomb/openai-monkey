@@ -3,16 +3,16 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "openai-basic-compat"
-version = "0.3.0"
-description = "Drop-in OpenAI-compatible client for internal Basic-auth gateways and local compute."
+name = "openai-monkey"
+version = "2.1.0"
+description = "A thin wrapper for easily monkeypatching openai-python"
 readme = "README.md"
 requires-python = ">=3.9"
 license = {text = "MIT"}
-authors = [{name="Your Team", email="ml-platform@example.com"}]
+authors = [{name="Chris McComb", email="ccmcc2012@gmail.com"}]
 dependencies = [
   "httpx>=0.24,<0.28",
-  "openai>=1.40,<2.0",
+  "openai==2.1.0",
 ]
 
 [tool.setuptools.packages.find]
