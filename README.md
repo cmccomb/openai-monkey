@@ -78,3 +78,36 @@ Installing the package exposes two helper commands:
   ```
 
   Use `--site-packages=/custom/path` to target a specific environment.
+
+## Development workflow
+
+The repository ships with formatter, linter, and type-checker defaults that
+target `src/openai_monkey` and `tests`. Install the development dependencies and
+pre-commit hooks to keep your changes consistent:
+
+```bash
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .[test]
+pip install pre-commit
+pre-commit install
+```
+
+Once configured, the hooks run the following tools automatically on staged
+files:
+
+| Tool | Command | Purpose |
+| --- | --- | --- |
+| Black | `black` | Enforces formatting. |
+| Ruff | `ruff format` and `ruff check --fix` | Applies import sorting and lint fixes. |
+| MyPy | `mypy src/openai_monkey tests` | Enforces strict static typing. |
+
+Run them manually across the full codebase before pushing:
+
+```bash
+ruff format src/openai_monkey tests
+ruff check src/openai_monkey tests
+black src/openai_monkey tests
+mypy
+pytest
+```
