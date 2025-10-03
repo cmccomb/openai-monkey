@@ -56,3 +56,26 @@ export OPENAI_BASIC_DISABLE_STREAMING=0
 ## Examples
 - `examples/minimal_app.py` demonstrates the default Basic flow.
 - `examples/bearer_app.py` shows how to call the adapter with Bearer tokens.
+
+## CLI helpers
+
+Installing the package exposes two helper commands:
+
+- `openai-monkey-ify`: Recursively rewrites `import openai` statements in a
+  repository so they load `openai_monkey` instead. Run it from the root of the
+  project you want to update:
+
+  ```bash
+  openai-monkey-ify  # defaults to the current directory
+  ```
+
+  Pass `--dry-run` to preview which files would change without editing them.
+
+- `openai-monkey-install-openai`: Creates a `.pth` alias so `import openai`
+  automatically resolves to `openai_monkey` in the active Python environment:
+
+  ```bash
+  openai-monkey-install-openai
+  ```
+
+  Use `--site-packages=/custom/path` to target a specific environment.

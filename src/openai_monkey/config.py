@@ -70,14 +70,16 @@ def load_config() -> dict[str, Any]:
         _load_json_env("OPENAI_BASIC_DROP_PARAMS", ["logprobs", "tool_choice"])
     )
     extra_allow = set(_load_json_env("OPENAI_BASIC_EXTRA_ALLOW", ["safety_profile"]))
-    model_routes = _load_json_env("OPENAI_BASIC_MODEL_ROUTES", {})
+    model_routes: dict[str, dict[str, Any]] = _load_json_env(
+        "OPENAI_BASIC_MODEL_ROUTES", {}
+    )
     disable_streaming = os.getenv("OPENAI_BASIC_DISABLE_STREAMING", "0") not in (
         "",
         "0",
         "false",
         "False",
     )
-    default_headers = _load_json_env("OPENAI_BASIC_HEADERS", {})
+    default_headers: dict[str, str] = _load_json_env("OPENAI_BASIC_HEADERS", {})
 
     return {
         "auth_type": auth_type,

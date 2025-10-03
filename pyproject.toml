@@ -21,6 +21,10 @@ test = [
   "respx>=0.21",
 ]
 
+[project.scripts]
+"openai-monkey-ify" = "openai_monkey.cli:monkeyify_main"
+"openai-monkey-install-openai" = "openai_monkey.cli:install_alias_main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 include = ["openai_monkey*"]

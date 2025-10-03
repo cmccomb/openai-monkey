@@ -1,7 +1,10 @@
 # examples/minimal_app.py (Basic-token mode)
 import os
+
 os.environ.setdefault("OPENAI_BASIC_BASE_URL", "https://internal.company.ai")
-os.environ.setdefault("OPENAI_BASIC_TOKEN", "abc.def.ghi")  # this is sent as: Authorization: Basic abc.def.ghi
+os.environ.setdefault(
+    "OPENAI_BASIC_TOKEN", "abc.def.ghi"
+)  # this is sent as: Authorization: Basic abc.def.ghi
 
 import openai_monkey as openai
 
@@ -12,7 +15,7 @@ print("SYNC:", r["output_text"])
 
 for ev in client.chat.completions.create(
     model="gpt-4o-mini",
-    messages=[{"role":"user","content":"stream a tiny poem no punctuation"}],
+    messages=[{"role": "user", "content": "stream a tiny poem no punctuation"}],
     stream=True,
 ):
     if ev.get("type") == "response.delta":

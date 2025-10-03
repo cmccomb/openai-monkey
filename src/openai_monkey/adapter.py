@@ -1,6 +1,10 @@
 from __future__ import annotations
-import json, re, time
-from typing import Any, Dict, Optional, Set
+
+import json
+import re
+import time
+from typing import Any, Dict, Set, cast
+
 
 def apply_adapter_patch(
     *,
@@ -53,7 +57,9 @@ def apply_adapter_patch(
         pay: Dict[str, Any] = {"model": model, "input": content}
         if "temperature" in kwargs:
             pay[param_map.get("temperature", "temperature")] = kwargs["temperature"]
-        filtered = {k: v for k, v in kwargs.items() if k not in {"stream", "temperature"}}
+        filtered = {
+            k: v for k, v in kwargs.items() if k not in {"stream", "temperature"}
+        }
         pay.update(_rewrite_kwargs(filtered))
         return pay
 
@@ -62,7 +68,11 @@ def apply_adapter_patch(
         text = (
             result.get("text")
             or data.get("text")
-            or (data.get("choices", [{}])[0].get("message", {}).get("content") if isinstance(data.get("choices"), list) else "")
+            or (
+                data.get("choices", [{}])[0].get("message", {}).get("content")
+                if isinstance(data.get("choices"), list)
+                else ""
+            )
             or ""
         )
         usage = data.get("usage") or {}
@@ -96,7 +106,10 @@ def apply_adapter_patch(
             return None
         tpe = msg.get("type")
         if tpe == "delta":
-            return {"type": "response.delta", "delta": {"output_text": msg.get("text", "")}}
+            return {
+                "type": "response.delta",
+                "delta": {"output_text": msg.get("text", "")},
+            }
         if tpe == "done":
             return {"type": "response.completed"}
         if "text" in msg:
@@ -117,8 +130,8 @@ def apply_adapter_patch(
         return path_map.get(key, base_path)
 
     # Patch constructors
-    _OrigOpenAI = openai.OpenAI
-    _OrigAsyncOpenAI = getattr(openai, "AsyncOpenAI", None)
+    _OrigOpenAI = cast(type[Any], openai.OpenAI)
+    _OrigAsyncOpenAI = cast(type[Any] | None, getattr(openai, "AsyncOpenAI", None))
 
     def _mk_httpx_client():
         return httpx.Client(
@@ -127,7 +140,7 @@ def apply_adapter_patch(
             timeout=httpx.Timeout(60.0),
         )
 
-    class PatchedOpenAI(_OrigOpenAI):
+    class PatchedOpenAI(_OrigOpenAI):  # type: ignore[misc, valid-type]
         def __init__(self, *args, **kwargs):
             kwargs.setdefault("base_url", base_url.rstrip("/"))
             kwargs.setdefault("api_key", "x")  # ignored
@@ -135,9 +148,11 @@ def apply_adapter_patch(
                 kwargs["http_client"] = _mk_httpx_client()
             super().__init__(*args, **kwargs)
 
-    if _OrigAsyncOpenAI:
+    PatchedAsyncOpenAI: type[Any] | None
+    if _OrigAsyncOpenAI is not None:
         import httpx as _httpx_async
-        class PatchedAsyncOpenAI(_OrigAsyncOpenAI):
+
+        class _PatchedAsyncOpenAI(_OrigAsyncOpenAI):  # type: ignore[misc, valid-type]
             def __init__(self, *args, **kwargs):
                 kwargs.setdefault("base_url", base_url.rstrip("/"))
                 kwargs.setdefault("api_key", "x")
@@ -148,15 +163,19 @@ def apply_adapter_patch(
                         timeout=_httpx_async.Timeout(60.0),
                     )
                 super().__init__(*args, **kwargs)
+
+        PatchedAsyncOpenAI = _PatchedAsyncOpenAI
+
     else:
         PatchedAsyncOpenAI = None
 
-    openai.OpenAI = PatchedOpenAI
-    if PatchedAsyncOpenAI:
-        openai.AsyncOpenAI = PatchedAsyncOpenAI
+    setattr(openai, "OpenAI", PatchedOpenAI)
+    if PatchedAsyncOpenAI is not None:
+        setattr(openai, "AsyncOpenAI", PatchedAsyncOpenAI)
 
     # Patch resources
     from openai.resources.responses import Responses as _Responses
+
     _orig_resp_create = _Responses.create
 
     def _patched_resp_create(self, *args, **kwargs):
@@ -174,6 +193,7 @@ def apply_adapter_patch(
             return _orig_resp_create(self, *args, **kwargs)
 
         if stream:
+
             def _event_iterator():
                 with http.stream("POST", path, json=payload) as r:
                     r.raise_for_status()
@@ -188,15 +208,20 @@ def apply_adapter_patch(
         r.raise_for_status()
         return _normalize_sync(r.json())
 
-    _Responses.create = _patched_resp_create
+    setattr(_Responses, "create", _patched_resp_create)
 
     try:
-        from openai.resources.chat.completions import Completions as _ChatCompletions
+        from openai.resources.chat.completions import (
+            Completions as _ImportedChatCompletions,
+        )
     except Exception:
-        _ChatCompletions = None
+        _ChatCompletions: type[Any] | None = None
+    else:
+        _ChatCompletions = cast(type[Any], _ImportedChatCompletions)
 
-    if _ChatCompletions:
+    if _ChatCompletions is not None:
         _orig_chat_create = _ChatCompletions.create
+
         def _patched_chat_create(self, *args, **kwargs):
             model = kwargs.pop("model")
             messages = kwargs.pop("messages")
@@ -224,6 +249,6 @@ def apply_adapter_patch(
                 r.raise_for_status()
                 return _normalize_sync(r.json())
 
-        _ChatCompletions.create = _patched_chat_create
+        setattr(_ChatCompletions, "create", _patched_chat_create)
 
     return True
