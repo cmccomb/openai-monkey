@@ -1,7 +1,12 @@
 from __future__ import annotations
-import os, sys
-from .config import load_config
+
+import importlib
+import os
+import sys
+import types as _types
+
 from .adapter import apply_adapter_patch
+from .config import load_config
 
 CFG = load_config()
 
@@ -24,20 +29,33 @@ apply_adapter_patch(
     default_headers=CFG["default_headers"],
 )
 
-import openai as _openai  # patched
+_openai = importlib.import_module("openai")  # patched
 
 OpenAI = _openai.OpenAI
 AsyncOpenAI = getattr(_openai, "AsyncOpenAI", None)
 __all__ = ["OpenAI", "AsyncOpenAI"]
 
 for name in (
-    "APIConnectionError", "APIStatusError", "AuthenticationError",
-    "RateLimitError", "BadRequestError", "APIError",
-    "resources", "types", "responses", "chat", "embeddings", "images", "audio",
+    "APIConnectionError",
+    "APIStatusError",
+    "AuthenticationError",
+    "RateLimitError",
+    "BadRequestError",
+    "APIError",
+    "resources",
+    "types",
+    "responses",
+    "chat",
+    "embeddings",
+    "images",
+    "audio",
 ):
     if hasattr(_openai, name):
         globals()[name] = getattr(_openai, name)
         __all__.append(name)
+        attr = globals()[name]
+        if isinstance(attr, _types.ModuleType):
+            sys.modules.setdefault(f"{__name__}.{name}", attr)
 
 if os.getenv("OPENAI_BASIC_ALIAS_OPENAI", "0") not in ("", "0", "false", "False"):
     sys.modules.setdefault("openai", sys.modules[__name__])

@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
-import respx
+import respx  # type: ignore[import]
 
 
 @pytest.fixture(params=["basic", "bearer"])
@@ -26,9 +26,7 @@ def responses_adapter(configure_adapter, request):
         token=token,
         auth_type=auth_type,
     )
-    expected_header = (
-        f"Basic {token}" if auth_type == "basic" else f"Bearer {token}"
-    )
+    expected_header = f"Basic {token}" if auth_type == "basic" else f"Bearer {token}"
     return module, expected_header
 
 
@@ -49,7 +47,11 @@ def test_responses_create_remaps_and_headers(responses_adapter):
                 "id": "resp-123",
                 "model": "m",
                 "result": {"text": "done"},
-                "usage": {"prompt_tokens": 1, "completion_tokens": 2, "total_tokens": 3},
+                "usage": {
+                    "prompt_tokens": 1,
+                    "completion_tokens": 2,
+                    "total_tokens": 3,
+                },
             },
         )
     )
@@ -93,12 +95,12 @@ def test_responses_create_streaming_normalizes_lines(responses_adapter):
     module, expected_header = responses_adapter
     client = module.OpenAI()
     stream_body = (
-        b"data: {\"type\": \"delta\", \"text\": \"Hel\"}\n\n"
-        b"data: {\"type\": \"delta\", \"text\": \"lo\"}\n\n"
-        b"data: {\"type\": \"unknown\"}\n\n"
+        b'data: {"type": "delta", "text": "Hel"}\n\n'
+        b'data: {"type": "delta", "text": "lo"}\n\n'
+        b'data: {"type": "unknown"}\n\n'
         b"not-json\n\n"
         b"\xff\n\n"
-        b"data: {\"type\": \"done\"}\n\n"
+        b'data: {"type": "done"}\n\n'
     )
     route = respx.post("https://mock.local/v1/resp-stream").mock(
         return_value=httpx.Response(

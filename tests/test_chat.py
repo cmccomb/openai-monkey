@@ -5,7 +5,7 @@ from typing import Any
 
 import httpx
 import pytest
-import respx
+import respx  # type: ignore[import]
 
 
 @pytest.fixture(params=["basic", "bearer"])
@@ -26,9 +26,7 @@ def chat_adapter(configure_adapter, request):
         token=token,
         auth_type=auth_type,
     )
-    expected_header = (
-        f"Basic {token}" if auth_type == "basic" else f"Bearer {token}"
-    )
+    expected_header = f"Basic {token}" if auth_type == "basic" else f"Bearer {token}"
     return module, expected_header
 
 
@@ -55,7 +53,11 @@ def test_chat_create_remaps_and_headers(chat_adapter):
                 "id": "chat-123",
                 "model": "chat-model",
                 "result": {"text": "response"},
-                "usage": {"prompt_tokens": 10, "completion_tokens": 5, "total_tokens": 15},
+                "usage": {
+                    "prompt_tokens": 10,
+                    "completion_tokens": 5,
+                    "total_tokens": 15,
+                },
             },
         )
     )
@@ -104,11 +106,11 @@ def test_chat_create_streaming_handles_malformed_lines(chat_adapter):
     module, expected_header = chat_adapter
     client = module.OpenAI()
     stream_body = (
-        b"data: {\"type\": \"delta\", \"text\": \"Hello\"}\n\n"
-        b"data: {\"text\": \" world\"}\n\n"
-        b"data: {\"type\": \"delta\", \"text\": "
-        b"\"ignored\"}\n\n"
-        b"data: {\"type\": \"done\"}\n\n"
+        b'data: {"type": "delta", "text": "Hello"}\n\n'
+        b'data: {"text": " world"}\n\n'
+        b'data: {"type": "delta", "text": '
+        b'"ignored"}\n\n'
+        b'data: {"type": "done"}\n\n'
     )
     route = respx.post("https://mock.local/v1/chat-stream").mock(
         return_value=httpx.Response(
