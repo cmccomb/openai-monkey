@@ -5,9 +5,16 @@ from .adapter import apply_adapter_patch
 
 CFG = load_config()
 
+_SUPPORTED_AUTH_TYPES = {"basic", "bearer"}
+if CFG["auth_type"] not in _SUPPORTED_AUTH_TYPES:
+    raise ValueError(
+        f"Unsupported OPENAI_AUTH_TYPE '{CFG['auth_type']}'. Supported types: {sorted(_SUPPORTED_AUTH_TYPES)}"
+    )
+
 apply_adapter_patch(
     base_url=CFG["base_url"],
-    basic_token=CFG["basic_token"],
+    auth_type=CFG["auth_type"],
+    token=CFG["token"],
     path_map=CFG["path_map"],
     param_map=CFG["param_map"],
     drop_params=CFG["drop_params"],

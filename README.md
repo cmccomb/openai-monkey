@@ -19,13 +19,23 @@ python your_app.py
 
 ## Configuration (env)
 
-Minimal:
+Minimal (Basic auth, default):
 ```bash
-export OPENAI_BASIC_BASE_URL="https://internal.company.ai"
-export OPENAI_BASIC_TOKEN="$YOUR_BASIC_TOKEN"   # will send: Authorization: Basic $YOUR_BASIC_TOKEN
+export OPENAI_AUTH_TYPE="basic"
+export OPENAI_BASE_URL="https://internal.company.ai"
+export OPENAI_TOKEN="$YOUR_BASIC_TOKEN"   # sends: Authorization: Basic $YOUR_BASIC_TOKEN
 ```
 
-Convenience: if `OPENAI_BASIC_TOKEN` is not set, we also check `OPENAI_API_KEY` and `OPENAI_KEY`.
+Bearer support:
+```bash
+export OPENAI_AUTH_TYPE="bearer"
+export OPENAI_BASE_URL="https://internal.company.ai"
+export OPENAI_TOKEN="$YOUR_BEARER_TOKEN"   # sends: Authorization: Bearer $YOUR_BEARER_TOKEN
+```
+
+For backwards compatibility the adapter still honours `OPENAI_BASIC_BASE_URL` and
+`OPENAI_BASIC_TOKEN` when the relaxed names are not set. Token fallbacks also check
+`OPENAI_BEARER_TOKEN`, `OPENAI_API_KEY`, and `OPENAI_KEY`.
 
 Optional JSON knobs:
 ```bash
@@ -43,5 +53,6 @@ export OPENAI_BASIC_HEADERS='{"X-Org":"design-research"}'
 export OPENAI_BASIC_DISABLE_STREAMING=0
 ```
 
-## Example
-See `examples/minimal_app.py`.
+## Examples
+- `examples/minimal_app.py` demonstrates the default Basic flow.
+- `examples/bearer_app.py` shows how to call the adapter with Bearer tokens.

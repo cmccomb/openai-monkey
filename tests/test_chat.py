@@ -8,9 +8,11 @@ import pytest
 import respx
 
 
-@pytest.fixture
-def chat_adapter(configure_adapter):
-    return configure_adapter(
+@pytest.fixture(params=["basic", "bearer"])
+def chat_adapter(configure_adapter, request):
+    auth_type: str = request.param
+    token = "TEST_BASIC_TOKEN" if auth_type == "basic" else "TEST_BEARER_TOKEN"
+    module = configure_adapter(
         path_map={
             "/chat/completions": "/v1/chat",
             "/chat/completions:stream": "/v1/chat-stream",
@@ -21,7 +23,13 @@ def chat_adapter(configure_adapter):
         },
         drop_params=["logprobs", "tool_choice"],
         default_headers={"X-Test": "true"},
+        token=token,
+        auth_type=auth_type,
     )
+    expected_header = (
+        f"Basic {token}" if auth_type == "basic" else f"Bearer {token}"
+    )
+    return module, expected_header
 
 
 def _json_payload(request: Any) -> dict[str, Any]:
@@ -38,7 +46,8 @@ def _consume_sync_result(generator):
 @respx.mock
 def test_chat_create_remaps_and_headers(chat_adapter):
     # Arrange
-    client = chat_adapter.OpenAI()
+    module, expected_header = chat_adapter
+    client = module.OpenAI()
     route = respx.post("https://mock.local/v1/chat").mock(
         return_value=httpx.Response(
             status_code=200,
@@ -75,7 +84,7 @@ def test_chat_create_remaps_and_headers(chat_adapter):
         "temp": 0.5,
         "max_output_tokens": 50,
     }
-    assert request.headers["Authorization"] == "Basic TEST_TOKEN"
+    assert request.headers["Authorization"] == expected_header
     assert request.headers["X-Test"] == "true"
     assert result == {
         "id": "chat-123",
@@ -92,7 +101,8 @@ def test_chat_create_remaps_and_headers(chat_adapter):
 @respx.mock
 def test_chat_create_streaming_handles_malformed_lines(chat_adapter):
     # Arrange
-    client = chat_adapter.OpenAI()
+    module, expected_header = chat_adapter
+    client = module.OpenAI()
     stream_body = (
         b"data: {\"type\": \"delta\", \"text\": \"Hello\"}\n\n"
         b"data: {\"text\": \" world\"}\n\n"
@@ -125,12 +135,15 @@ def test_chat_create_streaming_handles_malformed_lines(chat_adapter):
         {"type": "response.delta", "delta": {"output_text": "ignored"}},
         {"type": "response.completed"},
     ]
+    request = route.calls[0].request
+    assert request.headers["Authorization"] == expected_header
 
 
 @respx.mock
 def test_chat_create_raises_for_non_200(chat_adapter):
     # Arrange
-    client = chat_adapter.OpenAI()
+    module, _ = chat_adapter
+    client = module.OpenAI()
     respx.post("https://mock.local/v1/chat").mock(
         return_value=httpx.Response(status_code=500, json={"error": "bad"})
     )
@@ -144,7 +157,8 @@ def test_chat_create_raises_for_non_200(chat_adapter):
 @respx.mock
 def test_chat_create_normalizes_plain_text(chat_adapter):
     # Arrange
-    client = chat_adapter.OpenAI()
+    module, _ = chat_adapter
+    client = module.OpenAI()
     respx.post("https://mock.local/v1/chat").mock(
         return_value=httpx.Response(
             status_code=200,

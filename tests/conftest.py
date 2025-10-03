@@ -34,15 +34,17 @@ def configure_adapter(request: pytest.FixtureRequest) -> Callable[..., Any]:
     def _configure(
         *,
         base_url: str = "https://mock.local",
-        basic_token: str = "TEST_TOKEN",
+        token: str = "TEST_TOKEN",
         path_map: Optional[Dict[str, str]] = None,
         param_map: Optional[Dict[str, str]] = None,
         drop_params: Optional[list[str]] = None,
         default_headers: Optional[Dict[str, str]] = None,
         disable_streaming: bool = False,
+        auth_type: str = "basic",
     ) -> Any:
-        _setenv("OPENAI_BASIC_BASE_URL", base_url)
-        _setenv("OPENAI_BASIC_TOKEN", basic_token)
+        _setenv("OPENAI_AUTH_TYPE", auth_type)
+        _setenv("OPENAI_BASE_URL", base_url)
+        _setenv("OPENAI_TOKEN", token)
 
         if path_map is not None:
             _setenv("OPENAI_BASIC_PATH_MAP", json.dumps(path_map))

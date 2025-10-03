@@ -5,7 +5,8 @@ from typing import Any, Dict, Optional, Set
 def apply_adapter_patch(
     *,
     base_url: str,
-    basic_token: str,
+    auth_type: str,
+    token: str,
     path_map: Dict[str, str],
     param_map: Dict[str, str],
     drop_params: Set[str],
@@ -18,8 +19,14 @@ def apply_adapter_patch(
     import openai
 
     def _mk_headers():
-        # Basic token is used AS-IS after the word 'Basic '
-        h = {"Authorization": f"Basic {basic_token}"}
+        scheme = "basic" if not auth_type else auth_type.lower()
+        if scheme == "basic":
+            value = f"Basic {token}"
+        elif scheme == "bearer":
+            value = f"Bearer {token}"
+        else:
+            raise ValueError(f"Unsupported auth type: {auth_type}")
+        h = {"Authorization": value}
         if default_headers:
             h.update(default_headers)
         return h
