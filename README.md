@@ -19,6 +19,24 @@ python your_app.py
 
 ## Configuration (env)
 
+| Variable | Required | Default | Description |
+| --- | --- | --- | --- |
+| `OPENAI_AUTH_TYPE` | ✅ | `basic` | Selects the authentication scheme. Set to `basic` to send a Basic token or `bearer` to send a Bearer token. |
+| `OPENAI_BASE_URL` | ✅ | — | Base URL of the upstream API. Used to build request URLs regardless of auth type. |
+| `OPENAI_TOKEN` | ✅ | — | Raw credential appended to the `Authorization` header. Interpreted as either a Basic or Bearer token depending on `OPENAI_AUTH_TYPE`. |
+| `OPENAI_BASIC_BASE_URL` | ⛔️ | — | Legacy override for `OPENAI_BASE_URL`. Checked only when the primary variable is unset. |
+| `OPENAI_BASIC_TOKEN` | ⛔️ | — | Legacy override for `OPENAI_TOKEN`. Checked only when the primary variable is unset. |
+| `OPENAI_BEARER_TOKEN` / `OPENAI_API_KEY` / `OPENAI_KEY` | ⛔️ | — | Additional fallbacks that populate `OPENAI_TOKEN` when neither the primary nor legacy variables are present. |
+| `OPENAI_BASIC_PATH_MAP` | ⛔️ | `{}` | JSON object remapping request paths (e.g., `{"/responses": "/api/generate"}`). |
+| `OPENAI_BASIC_PARAM_MAP` | ⛔️ | `{}` | JSON object translating payload parameter names before forwarding. |
+| `OPENAI_BASIC_DROP_PARAMS` | ⛔️ | `[]` | JSON array listing payload parameters to remove entirely. |
+| `OPENAI_BASIC_EXTRA_ALLOW` | ⛔️ | `[]` | JSON array of extra payload fields allowed to pass through without filtering. |
+| `OPENAI_BASIC_MODEL_ROUTES` | ⛔️ | `{}` | JSON object for model-specific overrides such as custom paths. |
+| `OPENAI_BASIC_HEADERS` | ⛔️ | `{}` | JSON object of additional headers to merge into every outgoing request. |
+| `OPENAI_BASIC_DISABLE_STREAMING` | ⛔️ | `0` | Set to `1` to disable streaming even when the client requests it. |
+
+**Usage examples**
+
 Minimal (Basic auth, default):
 ```bash
 export OPENAI_AUTH_TYPE="basic"
@@ -32,26 +50,6 @@ Bearer support:
 export OPENAI_AUTH_TYPE="bearer"
 export OPENAI_BASE_URL="https://internal.company.ai"
 export OPENAI_TOKEN="$YOUR_BEARER_TOKEN"   # sends: Authorization: Bearer $YOUR_BEARER_TOKEN
-```
-
-For backwards compatibility the adapter still honours `OPENAI_BASIC_BASE_URL` and
-`OPENAI_BASIC_TOKEN` when the relaxed names are not set. Token fallbacks also check
-`OPENAI_BEARER_TOKEN`, `OPENAI_API_KEY`, and `OPENAI_KEY`.
-
-Optional JSON knobs:
-```bash
-export OPENAI_BASIC_PATH_MAP='{
-  "/responses": "/api/generate",
-  "/responses:stream": "/api/stream",
-  "/chat/completions": "/api/generate",
-  "/chat/completions:stream": "/api/stream"
-}'
-export OPENAI_BASIC_PARAM_MAP='{"max_tokens":"max_output_tokens","top_p":"nucleus"}'
-export OPENAI_BASIC_DROP_PARAMS='["logprobs","tool_choice"]'
-export OPENAI_BASIC_EXTRA_ALLOW='["safety_profile"]'
-export OPENAI_BASIC_MODEL_ROUTES='{"llama3.*":{"path":"/api/generate_llama"}}'
-export OPENAI_BASIC_HEADERS='{"X-Org":"design-research"}'
-export OPENAI_BASIC_DISABLE_STREAMING=0
 ```
 
 ## Examples
