@@ -17,4 +17,4 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 where = ["src"]
-include = ["openai_basic*"]
+include = ["openai_monkey*"]

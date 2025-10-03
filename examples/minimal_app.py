@@ -3,7 +3,7 @@ import os
 os.environ.setdefault("OPENAI_BASIC_BASE_URL", "https://internal.company.ai")
 os.environ.setdefault("OPENAI_BASIC_TOKEN", "abc.def.ghi")  # this is sent as: Authorization: Basic abc.def.ghi
 
-import openai_basic as openai
+import openai_monkey as openai
 
 client = openai.OpenAI()
 

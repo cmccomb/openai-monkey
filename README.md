@@ -6,7 +6,7 @@ This variant treats your **API key** as a **Basic token**. No username/password 
 
 ### 1) Explicit (recommended)
 ```python
-import openai_basic as openai
+import openai_monkey as openai
 client = openai.OpenAI()
 print(client.responses.create(model="gpt-4o-mini", input="ping")["output_text"])
 ```

@@ -167,16 +167,19 @@ def apply_adapter_patch(
             return _orig_resp_create(self, *args, **kwargs)
 
         if stream:
-            with http.stream("POST", path, json=payload) as r:
-                r.raise_for_status()
-                for line in r.iter_lines():
-                    ev = _normalize_stream_line(line)
-                    if ev:
-                        yield ev
-        else:
-            r = http.post(path, json=payload)
-            r.raise_for_status()
-            return _normalize_sync(r.json())
+            def _event_iterator():
+                with http.stream("POST", path, json=payload) as r:
+                    r.raise_for_status()
+                    for line in r.iter_lines():
+                        ev = _normalize_stream_line(line)
+                        if ev:
+                            yield ev
+
+            return _event_iterator()
+
+        r = http.post(path, json=payload)
+        r.raise_for_status()
+        return _normalize_sync(r.json())
 
     _Responses.create = _patched_resp_create
 
