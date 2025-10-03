@@ -1,3 +1,11 @@
+"""Load the OpenAI compatibility layer and expose patched client classes.
+
+Importing :mod:`openai_monkey` reads adapter configuration from the environment
+and immediately monkeypatches the installed ``openai`` package.  Once the patch
+is applied, applications can continue to ``import openai`` while transparently
+communicating with the internal provider configured by :func:`load_config`.
+"""
+
 from __future__ import annotations
 
 import importlib
