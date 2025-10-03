@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 import re
 import time
-from typing import Any, Dict, Set, cast
+from typing import Any, cast
 
 
 def apply_adapter_patch(
@@ -20,14 +20,14 @@ def apply_adapter_patch(
     base_url: str,
     auth_type: str,
     token: str,
-    path_map: Dict[str, str],
-    param_map: Dict[str, str],
-    drop_params: Set[str],
-    extra_allow: Set[str],
-    model_routes: Dict[str, Dict[str, Any]] | None,
+    path_map: dict[str, str],
+    param_map: dict[str, str],
+    drop_params: set[str],
+    extra_allow: set[str],
+    model_routes: dict[str, dict[str, Any]] | None,
     disable_streaming: bool,
-    default_headers: Dict[str, str] | None,
-    ) -> bool:
+    default_headers: dict[str, str] | None,
+) -> bool:
     """Patch ``openai`` to issue requests through the configured adapter.
 
     The patch works by replacing the ``OpenAI``/``AsyncOpenAI`` client classes
@@ -96,10 +96,10 @@ def apply_adapter_patch(
             h.update(default_headers)
         return h
 
-    def _rewrite_kwargs(kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _rewrite_kwargs(kwargs: dict[str, Any]) -> dict[str, Any]:
         """Rewrite keyword arguments so the internal API understands them."""
 
-        out: Dict[str, Any] = {}
+        out: dict[str, Any] = {}
         for k, v in kwargs.items():
             if k in drop_params:
                 continue
@@ -118,10 +118,10 @@ def apply_adapter_patch(
         lines.append("ASSISTANT:")
         return "\n".join(lines)
 
-    def _build_payload(model: str, content: Any, **kwargs) -> Dict[str, Any]:
+    def _build_payload(model: str, content: Any, **kwargs) -> dict[str, Any]:
         """Compose the JSON body expected by the internal inference endpoint."""
 
-        pay: Dict[str, Any] = {"model": model, "input": content}
+        pay: dict[str, Any] = {"model": model, "input": content}
         if "temperature" in kwargs:
             pay[param_map.get("temperature", "temperature")] = kwargs["temperature"]
         filtered = {
@@ -130,7 +130,7 @@ def apply_adapter_patch(
         pay.update(_rewrite_kwargs(filtered))
         return pay
 
-    def _normalize_sync(data: Dict[str, Any]) -> Dict[str, Any]:
+    def _normalize_sync(data: dict[str, Any]) -> dict[str, Any]:
         """Normalize synchronous responses to mimic ``openai`` semantics."""
 
         result = data.get("result") or {}
