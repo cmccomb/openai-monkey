@@ -3,7 +3,7 @@ import os, httpx, respx
 os.environ.setdefault("OPENAI_BASIC_BASE_URL", "https://internal.company.ai")
 os.environ.setdefault("OPENAI_BASIC_TOKEN", "TEST_TOKEN")
 
-import openai_basic as openai
+import openai_monkey as openai
 
 @respx.mock
 def test_sync_ok():
