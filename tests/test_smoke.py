@@ -1,5 +1,9 @@
 # tests/test_smoke.py (Basic-token mode)
-import os, httpx, respx
+import os
+
+import httpx
+import pytest
+import respx
 os.environ.setdefault("OPENAI_BASIC_BASE_URL", "https://internal.company.ai")
 os.environ.setdefault("OPENAI_BASIC_TOKEN", "TEST_TOKEN")
 
@@ -12,3 +16,8 @@ def test_sync_ok():
     )
     r = openai.OpenAI().responses.create(model="m", input="hi", max_tokens=5)
     assert r["output_text"] == "ok"
+
+
+def test_invalid_auth_type_errors(configure_adapter):
+    with pytest.raises(ValueError, match="Unsupported OPENAI_AUTH_TYPE"):
+        configure_adapter(auth_type="oauth", token="fake")

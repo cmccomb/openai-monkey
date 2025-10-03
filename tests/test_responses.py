@@ -8,9 +8,11 @@ import pytest
 import respx
 
 
-@pytest.fixture
-def responses_adapter(configure_adapter):
-    return configure_adapter(
+@pytest.fixture(params=["basic", "bearer"])
+def responses_adapter(configure_adapter, request):
+    auth_type: str = request.param
+    token = "TEST_BASIC_TOKEN" if auth_type == "basic" else "TEST_BEARER_TOKEN"
+    module = configure_adapter(
         path_map={
             "/responses": "/v1/resp",
             "/responses:stream": "/v1/resp-stream",
@@ -21,7 +23,13 @@ def responses_adapter(configure_adapter):
         },
         drop_params=["logprobs", "tool_choice"],
         default_headers={"X-Test": "true"},
+        token=token,
+        auth_type=auth_type,
     )
+    expected_header = (
+        f"Basic {token}" if auth_type == "basic" else f"Bearer {token}"
+    )
+    return module, expected_header
 
 
 def _json_payload(request: Any) -> dict[str, Any]:
@@ -32,7 +40,8 @@ def _json_payload(request: Any) -> dict[str, Any]:
 @respx.mock
 def test_responses_create_remaps_and_headers(responses_adapter):
     # Arrange
-    client = responses_adapter.OpenAI()
+    module, expected_header = responses_adapter
+    client = module.OpenAI()
     route = respx.post("https://mock.local/v1/resp").mock(
         return_value=httpx.Response(
             status_code=200,
@@ -64,7 +73,7 @@ def test_responses_create_remaps_and_headers(responses_adapter):
         "temp": 0.25,
         "max_output_tokens": 5,
     }
-    assert request.headers["Authorization"] == "Basic TEST_TOKEN"
+    assert request.headers["Authorization"] == expected_header
     assert request.headers["X-Test"] == "true"
     assert result == {
         "id": "resp-123",
@@ -81,7 +90,8 @@ def test_responses_create_remaps_and_headers(responses_adapter):
 @respx.mock
 def test_responses_create_streaming_normalizes_lines(responses_adapter):
     # Arrange
-    client = responses_adapter.OpenAI()
+    module, expected_header = responses_adapter
+    client = module.OpenAI()
     stream_body = (
         b"data: {\"type\": \"delta\", \"text\": \"Hel\"}\n\n"
         b"data: {\"type\": \"delta\", \"text\": \"lo\"}\n\n"
@@ -114,12 +124,15 @@ def test_responses_create_streaming_normalizes_lines(responses_adapter):
         {"type": "response.delta", "delta": {"output_text": "lo"}},
         {"type": "response.completed"},
     ]
+    request = route.calls[0].request
+    assert request.headers["Authorization"] == expected_header
 
 
 @respx.mock
 def test_responses_create_raises_for_non_200(responses_adapter):
     # Arrange
-    client = responses_adapter.OpenAI()
+    module, _ = responses_adapter
+    client = module.OpenAI()
     respx.post("https://mock.local/v1/resp").mock(
         return_value=httpx.Response(status_code=500, json={"error": "boom"})
     )
@@ -132,7 +145,8 @@ def test_responses_create_raises_for_non_200(responses_adapter):
 @respx.mock
 def test_responses_create_normalizes_missing_result(responses_adapter):
     # Arrange
-    client = responses_adapter.OpenAI()
+    module, _ = responses_adapter
+    client = module.OpenAI()
     respx.post("https://mock.local/v1/resp").mock(
         return_value=httpx.Response(
             status_code=200,
