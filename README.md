@@ -24,6 +24,7 @@ Minimal (Basic auth, default):
 export OPENAI_AUTH_TYPE="basic"
 export OPENAI_BASE_URL="https://internal.company.ai"
 export OPENAI_TOKEN="$YOUR_BASIC_TOKEN"   # sends: Authorization: Basic $YOUR_BASIC_TOKEN
+# The token must be configured; the adapter refuses to start with placeholder values.
 ```
 
 Bearer support:

@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import importlib
+import os
 import sys
 from pathlib import Path
+
+os.environ.setdefault("OPENAI_BASE_URL", "https://internal.company.ai")
+os.environ.setdefault("OPENAI_TOKEN", "TEST_TOKEN")
 
 from openai_monkey import cli
 
