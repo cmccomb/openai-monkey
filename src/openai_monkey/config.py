@@ -1,3 +1,5 @@
+"""Configuration helpers for the OpenAI compatibility adapter."""
+
 from __future__ import annotations
 
 import json
