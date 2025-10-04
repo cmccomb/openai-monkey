@@ -177,3 +177,32 @@ def test_responses_create_normalizes_missing_result(responses_adapter):
             "total_tokens": 7,
         },
     }
+
+
+@respx.mock
+def test_responses_create_honors_extra_allow(configure_adapter):
+    """Parameters listed in ``extra_allow`` should bypass the drop filter."""
+
+    module = configure_adapter(
+        path_map={"/responses": "/v1/resp"},
+        param_map={},
+        drop_params=["safety_profile"],
+        extra_allow=["safety_profile"],
+    )
+    client = module.OpenAI()
+    route = respx.post("https://mock.local/v1/resp").mock(
+        return_value=httpx.Response(
+            status_code=200,
+            json={"id": "resp-789", "model": "m", "result": {"text": "ok"}},
+        )
+    )
+
+    client.responses.create(
+        model="m",
+        input="hi",
+        safety_profile={"category": "allowed"},
+    )
+
+    assert route.called
+    payload = _json_payload(route.calls[0].request)
+    assert payload["safety_profile"] == {"category": "allowed"}

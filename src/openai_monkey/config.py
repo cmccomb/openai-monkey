@@ -141,7 +141,7 @@ def load_config() -> AdapterConfig:
         _pick_env(
             "OPENAI_BASE_URL",
             "OPENAI_BASIC_BASE_URL",
-            default="https://internal.company.ai",
+            default="",
         ),
         name="OPENAI_BASE_URL",
     )

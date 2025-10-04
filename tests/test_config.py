@@ -60,6 +60,16 @@ def test_load_config_rejects_malformed_json_payload() -> None:
         _reload_config_env(**env)
 
 
+def test_load_config_requires_base_url() -> None:
+    """The base URL must be configured explicitly to avoid silent fallbacks."""
+
+    env = _baseline_env()
+    env.pop("OPENAI_BASE_URL")
+
+    with pytest.raises(ValueError, match="OPENAI_BASE_URL"):
+        _reload_config_env(**env)
+
+
 def test_load_config_rejects_non_string_headers() -> None:
     """Mappings that are not string to string should be rejected."""
 

@@ -38,6 +38,7 @@ def configure_adapter(request: pytest.FixtureRequest) -> Callable[..., Any]:
         path_map: Optional[Dict[str, str]] = None,
         param_map: Optional[Dict[str, str]] = None,
         drop_params: Optional[list[str]] = None,
+        extra_allow: Optional[list[str]] = None,
         default_headers: Optional[Dict[str, str]] = None,
         disable_streaming: bool = False,
         auth_type: str = "basic",
@@ -52,6 +53,8 @@ def configure_adapter(request: pytest.FixtureRequest) -> Callable[..., Any]:
             _setenv("OPENAI_BASIC_PARAM_MAP", json.dumps(param_map))
         if drop_params is not None:
             _setenv("OPENAI_BASIC_DROP_PARAMS", json.dumps(drop_params))
+        if extra_allow is not None:
+            _setenv("OPENAI_BASIC_EXTRA_ALLOW", json.dumps(extra_allow))
         if default_headers is not None:
             _setenv("OPENAI_BASIC_HEADERS", json.dumps(default_headers))
         _setenv("OPENAI_BASIC_DISABLE_STREAMING", "1" if disable_streaming else "0")

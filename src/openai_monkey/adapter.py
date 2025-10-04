@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 import time
+from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 
@@ -101,11 +102,54 @@ def apply_adapter_patch(
 
         out: dict[str, Any] = {}
         for k, v in kwargs.items():
-            if k in drop_params:
+            if k in drop_params and k not in extra_allow:
+                continue
+            if k in extra_allow:
+                out[k] = v
                 continue
             mk = param_map.get(k, k)
             out[mk] = v
         return out
+
+    def _stringify_message_content(content: Any) -> str:
+        """Return a text representation for ``content``.
+
+        The adapter only supports text-based chat payloads.  Multimodal
+        structures are normalised by concatenating all ``"text"`` parts while
+        raising an explicit error for unsupported entries.  This avoids leaking
+        Python ``repr`` strings to the model when the upstream caller passes
+        complex message objects.
+
+        Args:
+            content: Raw ``content`` value from the OpenAI chat message.
+
+        Returns:
+            The text contained within ``content`` joined by newlines when the
+            payload uses the list-of-parts encoding.
+
+        Raises:
+            TypeError: If ``content`` contains non-textual elements that the
+                adapter cannot translate.
+        """
+
+        if content is None:
+            return ""
+        if isinstance(content, str):
+            return content
+        if isinstance(content, Mapping):
+            part_type = content.get("type")
+            text = content.get("text")
+            if part_type == "text" and isinstance(text, str):
+                return text
+            raise TypeError(
+                f"Unsupported chat message content part type: {part_type!r}"
+            )
+        if isinstance(content, Sequence) and not isinstance(
+            content, (str, bytes, bytearray)
+        ):
+            parts = [_stringify_message_content(item) for item in content]
+            return "\n".join(part for part in parts if part)
+        raise TypeError("Chat message content must be text or a sequence of text parts")
 
     def _messages_to_prompt(messages):
         """Flatten chat messages into the prompt format required internally."""
@@ -114,7 +158,13 @@ def apply_adapter_patch(
         for m in messages:
             role = m.get("role", "user")
             content = m.get("content", "")
-            lines.append(f"{role.upper()}: {content}")
+            try:
+                text = _stringify_message_content(content)
+            except TypeError as exc:
+                raise TypeError(
+                    f"Unsupported chat message content for role {role!r}: {exc}"
+                ) from exc
+            lines.append(f"{role.upper()}: {text}")
         lines.append("ASSISTANT:")
         return "\n".join(lines)
 
@@ -146,7 +196,7 @@ def apply_adapter_patch(
         )
         usage = data.get("usage") or {}
         return {
-            "id": data.get("id", f"resp-{int(time.time()*1000)}"),
+            "id": data.get("id", f"resp-{int(time.time() * 1000)}"),
             "model": data.get("model"),
             "output_text": text,
             "usage": {

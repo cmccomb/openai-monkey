@@ -101,6 +101,37 @@ def test_chat_create_remaps_and_headers(chat_adapter):
 
 
 @respx.mock
+def test_chat_create_supports_list_text_content(chat_adapter):
+    # Arrange
+    module, _ = chat_adapter
+    client = module.OpenAI()
+    route = respx.post("https://mock.local/v1/chat").mock(
+        return_value=httpx.Response(
+            status_code=200,
+            json={"id": "chat-234", "model": "chat-model", "result": {"text": "ok"}},
+        )
+    )
+    messages = [
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "Part one"},
+                {"type": "text", "text": "Part two"},
+            ],
+        }
+    ]
+
+    # Act
+    result_iter = client.chat.completions.create(model="chat-model", messages=messages)
+    _consume_sync_result(result_iter)
+
+    # Assert
+    assert route.called
+    payload = _json_payload(route.calls[0].request)
+    assert payload["input"] == "USER: Part one\nPart two\nASSISTANT:"
+
+
+@respx.mock
 def test_chat_create_streaming_handles_malformed_lines(chat_adapter):
     # Arrange
     module, expected_header = chat_adapter
@@ -154,6 +185,32 @@ def test_chat_create_raises_for_non_200(chat_adapter):
     with pytest.raises(httpx.HTTPStatusError):
         iterator = client.chat.completions.create(model="chat-model", messages=[])
         next(iterator)
+
+
+@respx.mock
+def test_chat_create_rejects_unsupported_message_parts(chat_adapter):
+    # Arrange
+    module, _ = chat_adapter
+    client = module.OpenAI()
+    route = respx.post("https://mock.local/v1/chat").mock(
+        return_value=httpx.Response(status_code=200, json={"id": "x"})
+    )
+
+    # Act / Assert
+    with pytest.raises(TypeError, match="Unsupported chat message content part type"):
+        client.chat.completions.create(
+            model="chat-model",
+            messages=[
+                {
+                    "role": "user",
+                    "content": [
+                        {"type": "image_url", "image_url": {"url": "https://example"}},
+                    ],
+                }
+            ],
+        )
+
+    assert not route.called
 
 
 @respx.mock
