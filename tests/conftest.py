@@ -4,9 +4,12 @@ import importlib
 import json
 import os
 import sys
-from collections.abc import Callable
+import threading
+from collections.abc import Callable, Iterator
+from dataclasses import dataclass
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 import pytest
 
@@ -16,6 +19,112 @@ if str(SRC_DIR) not in sys.path:
     sys.path.insert(0, str(SRC_DIR))
 
 _DEFAULT_CREDENTIAL = "test-credential"
+
+
+@dataclass(slots=True)
+class RecordedRequest:
+    """Container for requests captured by :func:`chat_server`."""
+
+    path: str
+    headers: dict[str, str]
+    body: bytes
+
+
+@dataclass(slots=True)
+class ChatServerContext:
+    """Expose information about the background HTTP test server."""
+
+    base_url: str
+    requests: list[RecordedRequest]
+
+
+class _ChatRequestHandler(BaseHTTPRequestHandler):
+    """HTTP handler that mimics the internal chat endpoints."""
+
+    server_version = "ChatTestServer/1.0"
+    protocol_version = "HTTP/1.1"
+    _SYNC_RESPONSE: ClassVar[dict[str, Any]] = {
+        "id": "chat-42",
+        "model": "chat-model",
+        "result": {"text": "Hello from test server"},
+        "usage": {
+            "prompt_tokens": 9,
+            "completion_tokens": 3,
+            "total_tokens": 12,
+        },
+    }
+    _STREAM_CHUNKS: ClassVar[list[bytes]] = [
+        b'data: {"type": "delta", "text": "Hello"}\n\n',
+        b'data: {"text": " world"}\n\n',
+        b'data: {"type": "done"}\n\n',
+    ]
+
+    def log_message(self, format: str, *args: Any) -> None:  # noqa: D401
+        """Silence default logging."""
+
+        return
+
+    def _capture_request(self, body: bytes) -> None:
+        server = self.server  # type: ignore[assignment]
+        requests = getattr(server, "captured_requests", None)
+        if requests is None:
+            return
+        headers = {key: value for key, value in self.headers.items()}
+        requests.append(RecordedRequest(path=self.path, headers=headers, body=body))
+
+    def do_POST(self) -> None:  # noqa: D401, N802
+        """Handle POST requests for chat endpoints."""
+
+        length = int(self.headers.get("Content-Length", "0"))
+        body = self.rfile.read(length) if length > 0 else b""
+        self._capture_request(body)
+        if self.path == "/v1/chat":
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            payload = json.dumps(self._SYNC_RESPONSE).encode("utf-8")
+            self.send_header("Content-Length", str(len(payload)))
+            self.send_header("Connection", "close")
+            self.end_headers()
+            self.wfile.write(payload)
+            self.wfile.flush()
+            self.close_connection = True
+            return
+        if self.path == "/v1/chat-stream":
+            self.send_response(200)
+            self.send_header("Content-Type", "text/event-stream")
+            self.send_header("Cache-Control", "no-cache")
+            self.send_header("Connection", "close")
+            self.end_headers()
+            for chunk in self._STREAM_CHUNKS:
+                self.wfile.write(chunk)
+                self.wfile.flush()
+            self.close_connection = True
+            return
+        self.send_response(404)
+        self.end_headers()
+
+
+@pytest.fixture
+def chat_server() -> Iterator[ChatServerContext]:
+    """Start a background HTTP server for integration tests."""
+
+    captured: list[RecordedRequest] = []
+
+    class _Server(ThreadingHTTPServer):
+        allow_reuse_address = True
+
+    server = _Server(("127.0.0.1", 0), _ChatRequestHandler)
+    setattr(server, "captured_requests", captured)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    host, port = server.server_address[:2]
+    base_url = f"http://{host}:{port}"
+    try:
+        yield ChatServerContext(base_url=base_url, requests=captured)
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+        server.server_close()
 
 
 @pytest.fixture
