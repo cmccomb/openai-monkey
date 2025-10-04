@@ -7,10 +7,9 @@ import ast
 import logging
 import sys
 import sysconfig
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
-
 
 LOGGER = logging.getLogger(__name__)
 

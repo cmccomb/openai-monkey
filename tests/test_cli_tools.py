@@ -13,6 +13,13 @@ os.environ.setdefault("OPENAI_TOKEN", "TEST_TOKEN")
 from openai_monkey import cli
 
 
+def _ensure(condition: bool, message: str) -> None:
+    """Raise ``AssertionError`` with ``message`` when ``condition`` is ``False``."""
+
+    if not condition:
+        raise AssertionError(message)
+
+
 def _write(path: Path, contents: str) -> None:
     path.write_text(contents, encoding="utf-8")
 
@@ -40,13 +47,28 @@ def test_monkeyify_repository_rewrites_common_imports(tmp_path: Path) -> None:
 
     changed = cli.monkeyify_repository(tmp_path)
 
-    assert changed == [source]
+    _ensure(changed == [source], f"Expected changed files to equal {[source]!r}")
     rewritten = source.read_text(encoding="utf-8")
-    assert "import openai_monkey as openai" in rewritten
-    assert "import openai_monkey as openai_client" in rewritten
-    assert "import openai_monkey as openai, sys" in rewritten
-    assert "from openai_monkey import OpenAI, AsyncOpenAI" in rewritten
-    assert "from openai_monkey.types import ChatCompletion" in rewritten
+    _ensure(
+        "import openai_monkey as openai" in rewritten,
+        "Expected import alias for openai",
+    )
+    _ensure(
+        "import openai_monkey as openai_client" in rewritten,
+        "Expected renamed alias for openai_client",
+    )
+    _ensure(
+        "import openai_monkey as openai, sys" in rewritten,
+        "Expected multi-import rewrite",
+    )
+    _ensure(
+        "from openai_monkey import OpenAI, AsyncOpenAI" in rewritten,
+        "Expected direct import rewrite",
+    )
+    _ensure(
+        "from openai_monkey.types import ChatCompletion" in rewritten,
+        "Expected nested import rewrite",
+    )
 
 
 def test_monkeyify_repository_supports_dry_run(tmp_path: Path) -> None:
@@ -58,8 +80,11 @@ def test_monkeyify_repository_supports_dry_run(tmp_path: Path) -> None:
 
     changed = cli.monkeyify_repository(tmp_path, dry_run=True)
 
-    assert changed == [source]
-    assert source.read_text(encoding="utf-8") == original
+    _ensure(changed == [source], f"Expected dry-run to report {[source]!r}")
+    _ensure(
+        source.read_text(encoding="utf-8") == original,
+        "Dry-run should not modify source file",
+    )
 
 
 def test_install_alias_creates_pth_file(tmp_path: Path) -> None:
@@ -67,15 +92,23 @@ def test_install_alias_creates_pth_file(tmp_path: Path) -> None:
 
     alias_path = cli.install_alias(site_packages=tmp_path)
 
-    assert alias_path.exists()
+    _ensure(alias_path.exists(), "Alias path should exist after installation")
     contents = alias_path.read_text(encoding="utf-8")
-    assert "import importlib, sys" in contents
+    expected_contents = (
+        "import importlib, sys; "
+        "sys.modules.setdefault('openai', importlib.import_module('openai_monkey'))\n"
+    )
+    _ensure(
+        contents == expected_contents,
+        f"Alias file contents unexpected: {contents!r}",
+    )
 
     previous = sys.modules.get("openai")
     try:
         sys.modules.pop("openai", None)
-        exec(contents, {"sys": sys, "importlib": importlib})
-        assert sys.modules["openai"] is importlib.import_module("openai_monkey")
+        module = importlib.import_module("openai_monkey")
+        result = sys.modules.setdefault("openai", module)
+        _ensure(result is module, "Alias execution should install openai module")
     finally:
         if previous is None:
             sys.modules.pop("openai", None)

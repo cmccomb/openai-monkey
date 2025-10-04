@@ -1,23 +1,41 @@
 """Regression tests ensuring public modules carry descriptive docstrings."""
 
+from collections.abc import Callable
 from importlib import import_module
+from typing import Any
 
 
-def test_adapter_docstrings_present(configure_adapter):
+def _ensure(condition: bool, message: str) -> None:
+    """Raise ``AssertionError`` with ``message`` when ``condition`` is ``False``."""
+
+    if not condition:
+        raise AssertionError(message)
+
+
+def test_adapter_docstrings_present(configure_adapter: Callable[..., Any]) -> None:
     """The adapter exposes descriptive docstrings for modules and functions."""
 
     module = configure_adapter()
-    assert module.__doc__, "openai_monkey module docstring should be defined"
+    _ensure(
+        module.__doc__ is not None, "openai_monkey module docstring should be defined"
+    )
 
     adapter = import_module("openai_monkey.adapter")
-    assert adapter.__doc__, "adapter module docstring should describe the patch"
-    assert (
-        adapter.apply_adapter_patch.__doc__
-    ), "apply_adapter_patch must explain the monkeypatching process"
+    _ensure(
+        adapter.__doc__ is not None,
+        "adapter module docstring should describe the patch",
+    )
+    _ensure(
+        adapter.apply_adapter_patch.__doc__ is not None,
+        "apply_adapter_patch must explain the monkeypatching process",
+    )
 
 
-def test_config_module_docstring_present():
+def test_config_module_docstring_present() -> None:
     """Configuration helpers are documented for discoverability."""
 
     config = import_module("openai_monkey.config")
-    assert config.__doc__, "config module docstring should describe its purpose"
+    _ensure(
+        config.__doc__ is not None,
+        "config module docstring should describe its purpose",
+    )

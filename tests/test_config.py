@@ -5,8 +5,16 @@ import os
 from typing import Any
 
 import pytest
-
 from openai_monkey import config as config_module
+
+_BASELINE_CREDENTIAL = "super-secret"
+
+
+def _ensure(condition: bool, message: str) -> None:
+    """Raise ``AssertionError`` with ``message`` when ``condition`` is ``False``."""
+
+    if not condition:
+        raise AssertionError(message)
 
 
 def _reload_config_env(**env: Any) -> Any:
@@ -36,7 +44,7 @@ def _baseline_env() -> dict[str, str]:
 
     return {
         "OPENAI_BASE_URL": "https://secure.local",
-        "OPENAI_TOKEN": "super-secret",
+        "OPENAI_TOKEN": _BASELINE_CREDENTIAL,
     }
 
 
@@ -60,6 +68,17 @@ def test_load_config_rejects_malformed_json_payload() -> None:
         _reload_config_env(**env)
 
 
+def test_load_config_requires_base_url() -> None:
+    """The base URL must be configured explicitly to avoid silent fallbacks."""
+
+    env = _baseline_env()
+    env["OPENAI_BASE_URL"] = ""
+    env["OPENAI_BASIC_BASE_URL"] = ""
+
+    with pytest.raises(ValueError, match="OPENAI_BASE_URL"):
+        _reload_config_env(**env)
+
+
 def test_load_config_rejects_non_string_headers() -> None:
     """Mappings that are not string to string should be rejected."""
 
@@ -74,7 +93,7 @@ def test_load_config_rejects_placeholder_token() -> None:
     """Placeholder tokens should not be accepted."""
 
     env = _baseline_env()
-    env["OPENAI_TOKEN"] = "REPLACE_ME"
+    env["OPENAI_TOKEN"] = config_module._PLACEHOLDER_SENTINEL
 
     with pytest.raises(ValueError, match="real credential"):
         _reload_config_env(**env)
@@ -96,10 +115,25 @@ def test_load_config_accepts_valid_payload() -> None:
 
     config = _reload_config_env(**env)
 
-    assert config.auth_type == "bearer"
-    assert config.base_url == "https://secure.local"
-    assert config.token == "super-secret"
-    assert config.default_headers == {"X-Test": "true"}
-    assert config.drop_params == {"a", "b"}
-    assert config.extra_allow == {"safety"}
-    assert config.disable_streaming is True
+    _ensure(config.auth_type == "bearer", f"Unexpected auth_type: {config.auth_type!r}")
+    _ensure(
+        config.base_url == "https://secure.local",
+        f"Unexpected base_url: {config.base_url!r}",
+    )
+    _ensure(config.token == _BASELINE_CREDENTIAL, "Token should match baseline env")
+    _ensure(
+        config.default_headers == {"X-Test": "true"},
+        f"Unexpected default headers: {config.default_headers!r}",
+    )
+    _ensure(
+        config.drop_params == {"a", "b"},
+        f"Unexpected drop params: {config.drop_params!r}",
+    )
+    _ensure(
+        config.extra_allow == {"safety"},
+        f"Unexpected extra_allow: {config.extra_allow!r}",
+    )
+    _ensure(
+        config.disable_streaming is True,
+        "disable_streaming flag should normalize truthy values",
+    )

@@ -8,6 +8,8 @@ from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
+_PLACEHOLDER_SENTINEL = "REPLACE_ME"
+
 
 def _load_json_env(name: str, *, default: Any) -> Any:
     """Return the parsed JSON value for ``name``.
@@ -141,7 +143,7 @@ def load_config() -> AdapterConfig:
         _pick_env(
             "OPENAI_BASE_URL",
             "OPENAI_BASIC_BASE_URL",
-            default="https://internal.company.ai",
+            default="",
         ),
         name="OPENAI_BASE_URL",
     )
@@ -158,7 +160,7 @@ def load_config() -> AdapterConfig:
         name="OPENAI_TOKEN",
     )
 
-    if token == "REPLACE_ME":
+    if token == _PLACEHOLDER_SENTINEL:
         raise ValueError("OPENAI_TOKEN must be configured with a real credential")
 
     raw_path_map = _load_json_env(
